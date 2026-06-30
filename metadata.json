@@ -1,0 +1,6 @@
+{
+  "name": "EduManager Pro",
+  "description": "A centralized, high-performance School Management System with admin, teacher, and student portals.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
