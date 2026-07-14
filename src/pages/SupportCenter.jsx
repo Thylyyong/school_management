@@ -203,7 +203,7 @@ export default function SupportCenter({ isOpen, onClose, role }) {
                 padding: "0.75rem 1rem", fontSize: "0.8125rem", fontWeight: 600,
                 color: activeTab === tab.id ? "var(--color-primary-dark)" : "var(--color-slate-500)",
                 borderBottom: `2px solid ${activeTab === tab.id ? "var(--color-primary)" : "transparent"}`,
-                background: "none", border: "none", borderBottom: `2px solid ${activeTab === tab.id ? "var(--color-primary)" : "transparent"}`,
+                background: "none", border: "none",
                 cursor: "pointer", transition: "all 0.15s", marginBottom: "-1px"
               }}
             >
