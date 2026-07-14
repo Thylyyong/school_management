@@ -1,41 +1,40 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { GraduationCap, Landmark, ShieldAlert, BookOpen, UserCheck, Key, ArrowRight, Star } from "lucide-react";
+import {
+  GraduationCap, BookOpen, Landmark, ShieldAlert,
+  User, Lock, ArrowRight, Building2, Wifi, ChevronRight
+} from "lucide-react";
 import "./Login.css";
-
 import { loginWithIdUserAndPassword } from "../auth/authService";
 import { setSession, clearSession, getSession } from "../auth/session";
 
-/**
- * Login Component
- *
- * Secure-ish prototype login using ID + password and role selection.
- * No auto-available launch users and no demo quick buttons.
- */
+const ROLES = [
+  { id: "admin",   label: "Admin",   icon: <Landmark size={18} />,      placeholder: "A-100",  hint: "Institution administrator" },
+  { id: "teacher", label: "Faculty", icon: <BookOpen size={18} />,      placeholder: "T-200",  hint: "Faculty / Instructor" },
+  { id: "student", label: "Student", icon: <GraduationCap size={18} />, placeholder: "S-300",  hint: "Enrolled student" },
+];
+
+const CREDENTIALS = [
+  { role: "Admin",   id: "A-100", pw: "Admin@123" },
+  { role: "Faculty", id: "T-200", pw: "Teacher@123" },
+  { role: "Student", id: "S-300", pw: "Student@123" },
+];
+
 export default function Login({ onLoginSuccess }) {
   const [selectedRole, setSelectedRole] = useState("student");
-  const [idUser, setIdUser] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [idUser, setIdUser]       = useState("");
+  const [password, setPassword]   = useState("");
+  const [remember, setRemember]   = useState(false);
+  const [error, setError]         = useState("");
+  const [loading, setLoading]     = useState(false);
 
-  const roleLabel = useMemo(() => {
-    if (selectedRole === "admin") return "Admin Identifier";
-    if (selectedRole === "teacher") return "Teacher Identifier";
-    return "Student Identifier";
-  }, [selectedRole]);
+  const activeRole = ROLES.find(r => r.id === selectedRole);
 
+  // Restore session on mount
   useEffect(() => {
-    // If a session exists, restore it immediately.
     const s = getSession();
-    if (s?.role && s?.idUser) {
-      onLoginSuccess(s.role, s.idUser);
-    }
+    if (s?.role && s?.idUser) onLoginSuccess(s.role, s.idUser);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    setError("");
-  }, [selectedRole]);
 
   const handleRoleSelect = (role) => {
     setSelectedRole(role);
@@ -47,31 +46,18 @@ export default function Login({ onLoginSuccess }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-
     if (!idUser.trim() || !password.trim()) {
-      setError("Please fill in all security fields.");
+      setError("Please fill in all required fields.");
       return;
     }
-
-    // Normalize common user input errors
-    const normalizedRole = selectedRole;
-    const normalizedId = idUser.trim();
-    const normalizedPassword = password;
-
-
     setLoading(true);
     try {
       const res = await loginWithIdUserAndPassword({
-        role: normalizedRole,
-        idUser: normalizedId,
-        password: normalizedPassword,
+        role: selectedRole,
+        idUser: idUser.trim(),
+        password,
       });
-
-      if (!res.ok) {
-        setError(res.error || "Login failed.");
-        return;
-      }
-
+      if (!res.ok) { setError(res.error || "Login failed."); return; }
       clearSession();
       setSession(res.session);
       onLoginSuccess(res.session.role, res.session.idUser);
@@ -80,165 +66,206 @@ export default function Login({ onLoginSuccess }) {
     }
   };
 
-
   return (
     <div className="login-screen">
-      
-      {/* Left side: Premium Backdrop with school metrics */}
-      <div className="login-sidebar">
-        
-        {/* Soft decorative background glow circles */}
-        <div className="login-sidebar-glow-1" />
-        <div className="login-sidebar-glow-2" />
 
-        {/* Top school branding */}
-        <div style={{position: 'relative', zIndex: 10, display: 'flex', alignItems: 'center', gap: '0.75rem'}}>
-          <div style={{padding: '0.625rem', backgroundColor: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(12px)', borderRadius: '1rem', border: '1px solid rgba(255,255,255,0.25)', boxShadow: 'var(--shadow-md)'}}>
-            <GraduationCap className="w-8 h-8" style={{color: 'white'}} />
+      {/* ═══ LEFT HERO PANEL ═══ */}
+      <div className="login-hero">
+        <div className="login-hero-bg" />
+        <div className="login-hero-grid" />
+        <div className="login-hero-orb-1" />
+        <div className="login-hero-orb-2" />
+        <div className="login-hero-orb-3" />
+
+        <div className="login-hero-content">
+          {/* Logo */}
+          <div className="login-hero-logo">
+            <div className="login-hero-logo-icon">
+              <GraduationCap size={20} />
+            </div>
+            <div>
+              <div className="login-hero-logo-name">EduManager Pro</div>
+              <div className="login-hero-logo-ver">University Portal v4.2</div>
+            </div>
           </div>
-          <div>
-            <h1 style={{fontSize: '1.5rem', fontWeight: 900, letterSpacing: '-0.025em', color: 'white'}}>
-              EduManager Pro
+
+          {/* Main content */}
+          <div className="login-hero-main">
+            <div className="login-hero-tag">
+              <span className="login-hero-tag-dot" />
+              Secure Academic Gateway
+            </div>
+            <h1 className="login-hero-headline">
+              Empower your <span>academic</span> journey.
             </h1>
-            <p style={{fontSize: '0.75rem', color: 'rgba(255,255,255,0.8)', fontFamily: 'var(--font-mono)', letterSpacing: '0.05em', fontWeight: 700}}>ARTISAN ACADEMIC v4.2</p>
-          </div>
-        </div>
+            <p className="login-hero-text">
+              The university's high-performance management portal — designed to bring clarity and efficiency to modern educational institutions. Manage students, faculty, courses, and resources from one place.
+            </p>
 
-        {/* Dynamic center messaging with modern statistics */}
-        <div className="login-sidebar-content">
-          <span style={{display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.25rem 0.875rem', backgroundColor: 'rgba(30,20,10,0.2)', color: 'var(--color-light)', fontSize: '0.75rem', fontWeight: 800, letterSpacing: '0.025em', borderRadius: '9999px', border: '1px solid rgba(255,255,255,0.2)', marginBottom: '1.5rem'}}>
-            <Star className="w-3.5 h-3.5" style={{color: 'var(--color-accent-yellow)', fill: 'var(--color-accent-yellow)'}} /> Authorized craft workspace
-          </span>
-          <h2 style={{fontSize: '2.25rem', fontWeight: 900, color: 'var(--color-light)', letterSpacing: '-0.025em', lineHeight: 1.3}}>
-            A beautiful, hand-styled core for admin, teachers, and student portfolios.
-          </h2>
-          <p style={{marginTop: '1rem', color: 'rgba(255, 251, 235, 0.95)', fontSize: '0.875rem', lineHeight: 1.6}}>
-            Welcome back to your educational creation workshop. Streamline structural class guidelines, coordinate custom lesson planners, and track grading lists with style.
-          </p>
-
-          <div className="login-stats-grid">
-            <div className="login-stat-card">
-              <span style={{display: 'block', fontSize: '1.5rem', fontWeight: 900, color: 'var(--color-primary)'}}>640+</span>
-              <span style={{fontSize: '0.625rem', color: 'var(--color-slate-500)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.025em'}}>Students Status</span>
-            </div>
-            <div className="login-stat-card">
-              <span style={{display: 'block', fontSize: '1.5rem', fontWeight: 900, color: 'var(--color-accent-blue)'}}>98.4%</span>
-              <span style={{fontSize: '0.625rem', color: 'var(--color-slate-500)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.025em'}}>Daily Attend</span>
-            </div>
-            <div className="login-stat-card">
-              <span style={{display: 'block', fontSize: '1.5rem', fontWeight: 900, color: 'var(--color-accent-pink)'}}>AP</span>
-              <span style={{fontSize: '0.625rem', color: 'var(--color-slate-500)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.025em'}}>Curriculums</span>
+            {/* Stats */}
+            <div className="login-hero-stats">
+              <div className="login-stat-card">
+                <div className="login-stat-value">1,240</div>
+                <div className="login-stat-label">Students Enrolled</div>
+              </div>
+              <div className="login-stat-card">
+                <div className="login-stat-value">86</div>
+                <div className="login-stat-label">Active Faculty</div>
+              </div>
+              <div className="login-stat-card">
+                <div className="login-stat-value">98.4%</div>
+                <div className="login-stat-label">Attendance Rate</div>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Footer info */}
-        <div style={{position: 'relative', zIndex: 10, paddingTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.1)', fontSize: '0.75rem', color: 'rgba(254, 243, 199, 0.8)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontFamily: 'var(--font-mono)'}}>
-          <span>© 2026 EduManager Infrastructure Inc.</span>
-          <span style={{display: 'flex', alignItems: 'center', gap: '0.375rem', fontWeight: 700}}>
-            <span style={{width: '6px', height: '6px', backgroundColor: 'var(--color-accent-yellow)', borderRadius: '50%'}} />
-            TLS 1.3 Certified
-          </span>
+          {/* Footer */}
+          <div className="login-hero-footer">
+            <div className="login-hero-footer-links">
+              <a href="#">Privacy Policy</a>
+              <a href="#">Terms of Service</a>
+              <a href="#">IT Support</a>
+            </div>
+            <div className="login-secure-badge">
+              <span className="login-secure-dot" />
+              All Systems Operational
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Right side: Modern interactive credentials section */}
-      <div className="login-form-area">
-        <div className="login-form-container">
-          <div style={{marginBottom: '2rem', position: 'relative'}}>
-            <h3 className="login-title">
-              System Sign In
-              <span className="login-title-underline" />
-            </h3>
-            <p style={{fontSize: '0.75rem', fontWeight: 500, color: 'var(--color-slate-500)', marginTop: '0.5rem'}}>Choose your custom portal to initialize your design deck.</p>
+      {/* ═══ RIGHT FORM PANEL ═══ */}
+      <div className="login-form-panel">
+        <div className="login-form-card">
+          <div className="login-form-header">
+            <h2 className="login-form-title">Sign in to your account</h2>
+            <p className="login-form-subtitle">
+              Welcome back! Please choose your role and sign in.
+            </p>
           </div>
 
-          {/* Role selection tab button system */}
-          <div className="role-tab-group">
-            <button
-              type="button"
-              onClick={() => handleRoleSelect("student")}
-              className={`role-tab-btn ${selectedRole === "student" ? "active" : ""}`}
-            >
-              <GraduationCap className="w-4 h-4" /> Student
-            </button>
-            <button
-              type="button"
-              onClick={() => handleRoleSelect("teacher")}
-              className={`role-tab-btn ${selectedRole === "teacher" ? "active" : ""}`}
-            >
-              <BookOpen className="w-4 h-4" /> Teacher
-            </button>
-            <button
-              type="button"
-              onClick={() => handleRoleSelect("admin")}
-              className={`role-tab-btn ${selectedRole === "admin" ? "active" : ""}`}
-            >
-              <Landmark className="w-4 h-4" /> Admin
-            </button>
+          {/* Role Selector */}
+          <div className="login-role-tabs">
+            {ROLES.map(role => (
+              <button
+                key={role.id}
+                type="button"
+                onClick={() => handleRoleSelect(role.id)}
+                className={`login-role-tab ${selectedRole === role.id ? "active" : ""}`}
+              >
+                <span className="login-role-tab-icon">{role.icon}</span>
+                {role.label}
+              </button>
+            ))}
           </div>
 
-          <form onSubmit={handleSubmit} style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
-            <div>
-              <label style={{display: 'block', fontSize: '0.625rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-dark)', marginBottom: '0.375rem'}}>
-                {roleLabel}
+          <form onSubmit={handleSubmit}>
+            {/* ID Field */}
+            <div className="login-field">
+              <label className="login-label">
+                {activeRole?.hint} ID
               </label>
-              <div className="login-input-wrapper">
-                <span className="login-input-icon"><UserCheck className="w-4 h-4" /></span>
+              <div className="login-input-wrap">
+                <span className="login-input-icon"><User size={15} /></span>
                 <input
                   type="text"
                   value={idUser}
-                  onChange={(e) => setIdUser(e.target.value)}
-                  placeholder={selectedRole === 'admin' ? 'A-100' : selectedRole === 'teacher' ? 'T-200' : 'S-300'}
+                  onChange={e => setIdUser(e.target.value)}
+                  placeholder={activeRole?.placeholder}
                   className="login-input"
                   autoComplete="username"
+                  id="login-id"
                 />
               </div>
             </div>
 
-            <div>
-              <label style={{display: 'block', fontSize: '0.625rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-dark)', marginBottom: '0.375rem'}}>
-                Access Passphrase
-              </label>
-              <div className="login-input-wrapper">
-                <span className="login-input-icon"><Key className="w-4 h-4" /></span>
+            {/* Password Field */}
+            <div className="login-field">
+              <div className="login-field-row">
+                <label className="login-label">Password</label>
+                <span className="login-forgot">Forgot password?</span>
+              </div>
+              <div className="login-input-wrap">
+                <span className="login-input-icon"><Lock size={15} /></span>
                 <input
                   type="password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••••••••"
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="••••••••••••"
                   className="login-input"
                   autoComplete="current-password"
+                  id="login-password"
                 />
               </div>
             </div>
 
+            {/* Remember me */}
+            <label className="login-remember">
+              <input
+                type="checkbox"
+                checked={remember}
+                onChange={e => setRemember(e.target.checked)}
+              />
+              Keep me signed in for 30 days
+            </label>
+
+            {/* MFA notice */}
+            {selectedRole === "admin" && (
+              <div className="login-mfa-notice">
+                <ShieldAlert size={15} style={{ flexShrink: 0, marginTop: 1 }} />
+                <span>
+                  2-Factor Authentication (MFA) is required. Have your EduManager Authenticator app ready.
+                </span>
+              </div>
+            )}
+
+            {/* Error */}
             {error && (
               <div className="login-error">
-                <ShieldAlert className="w-4 h-4 flex-shrink-0" />
+                <ShieldAlert size={15} style={{ flexShrink: 0 }} />
                 <span>{error}</span>
               </div>
             )}
 
-            <button type="submit" className="login-submit-btn" disabled={loading} style={{opacity: loading ? 0.7 : 1}}>
-              {loading ? 'Signing in...' : 'Initialize Command Deck'}
-              <ArrowRight className="w-4 h-4" />
+            {/* Submit */}
+            <button
+              type="submit"
+              className="login-submit"
+              disabled={loading}
+              id="login-submit-btn"
+            >
+              {loading ? "Signing in…" : "Sign In"}
+              {!loading && <ArrowRight size={17} />}
             </button>
           </form>
 
-          <div style={{marginTop: '1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-slate-500)', lineHeight: 1.6}}>
-            Default test accounts (enter ID + password):
-            <div style={{fontFamily: 'var(--font-mono)', marginTop: '0.5rem'}}>
-              Admin: <b>A-100</b> / <b>Admin@123</b>
-              <br />
-              Teacher: <b>T-200</b> / <b>Teacher@123</b>
-              <br />
-              Student: <b>S-300</b> / <b>Student@123</b>
-            </div>
+          {/* Divider */}
+          <div className="login-or">or</div>
+
+          <button className="login-institutional" type="button">
+            <Building2 size={15} />
+            Sign in with Institutional Access
+          </button>
+
+          {/* Default Credentials */}
+          <div className="login-creds-helper">
+            <div className="login-creds-title">Test Credentials</div>
+            {CREDENTIALS.map(c => (
+              <div key={c.role} className="login-creds-row">
+                <span className="login-creds-role">{c.role}</span>
+                <span className="login-creds-code">{c.id}</span>
+                <span style={{ color: '#94a3b8', fontSize: '0.6rem' }}>/</span>
+                <span className="login-creds-code">{c.pw}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="login-status-footer">
+            <span className="login-status-dot" />
+            <span>All services operational · EduManager Pro © 2026</span>
           </div>
         </div>
       </div>
     </div>
   );
 }
-

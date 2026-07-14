@@ -1,174 +1,320 @@
 import React, { useState } from "react";
-import { TrendingUp, Award, Users, Save, Edit2 } from "lucide-react";
+import {
+  TrendingUp, Award, Users, Save, Edit2, Plus, Upload,
+  FileText, Clock, CheckCircle, Calendar, BarChart3
+} from "lucide-react";
 
-export default function GradesTab({ activeCourse, studentsInClass, onUpdateCourseGrades }) {
-  const [editingGradeId, setEditingGradeId] = useState(null);
-  const [editingScoreCode, setEditingScoreCode] = useState(0);
+/* ── Grade Distribution Chart (SVG bars) ── */
+function GradeDistChart({ grades }) {
+  const buckets = { A: 0, B: 0, C: 0, D: 0, F: 0 };
+  grades.forEach(g => {
+    const pct = (g.score / g.maxScore) * 100;
+    if (pct >= 90) buckets.A++;
+    else if (pct >= 80) buckets.B++;
+    else if (pct >= 70) buckets.C++;
+    else if (pct >= 60) buckets.D++;
+    else buckets.F++;
+  });
+  const maxVal = Math.max(...Object.values(buckets), 1);
+  const COLORS = { A: "#10b981", B: "#6366f1", C: "#f59e0b", D: "#f97316", F: "#ef4444" };
+  return (
+    <div style={{ display: "flex", alignItems: "flex-end", gap: "0.5rem", height: "80px", paddingTop: "0.5rem" }}>
+      {Object.entries(buckets).map(([letter, count]) => (
+        <div key={letter} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "0.25rem" }}>
+          <div style={{ fontSize: "0.625rem", fontWeight: 700, color: "var(--color-slate-400)", fontFamily: "var(--font-mono)" }}>{count}</div>
+          <div style={{
+            width: "100%", background: COLORS[letter], borderRadius: "0.25rem 0.25rem 0 0",
+            height: `${(count / maxVal) * 56}px`, minHeight: count > 0 ? "8px" : "0",
+            transition: "height 0.6s cubic-bezier(0.4,0,0.2,1)"
+          }} />
+          <div style={{ fontSize: "0.6875rem", fontWeight: 800, color: "var(--color-slate-500)", fontFamily: "var(--font-mono)" }}>{letter}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const COURSE_MATERIALS = [
+  { name: "PHY301_Lecture_Notes_Ch1.pdf", size: "2.4 MB", type: "PDF" },
+  { name: "Thermodynamics_Formula_Sheet.pdf", size: "840 KB", type: "PDF" },
+  { name: "Course_Syllabus_Fall2026.docx", size: "120 KB", type: "DOC" },
+];
+
+const SCHEDULE_TODAY = [
+  { time: "9:00 AM",  course: "PHY-102", room: "Room 302", status: "Completed" },
+  { time: "11:00 AM", course: "MATH-401",room: "Room 305", status: "Upcoming" },
+  { time: "2:00 PM",  course: "PHYS-102",room: "Room 302", status: "Upcoming" },
+];
+
+export default function GradesTab({
+  activeCourse, studentsInClass, onUpdateCourseGrades,
+  lessonPlans, events, isDashboard = false
+}) {
+  const [editingGradeId, setEditingGradeId]     = useState(null);
+  const [editingScore, setEditingScore]         = useState(0);
 
   const currentGrades = activeCourse?.grades || [];
-  const averageGradePercent = currentGrades.length > 0 
-    ? (currentGrades.reduce((sum, g) => sum + (g.score / g.maxScore) * g.weight, 0) / currentGrades.reduce((sum, g) => sum + g.weight, 0)) * 100
+  const totalWeight   = currentGrades.reduce((s, g) => s + g.weight, 0);
+  const avgPct        = totalWeight > 0
+    ? (currentGrades.reduce((s, g) => s + (g.score / g.maxScore) * g.weight, 0) / totalWeight) * 100
     : 0;
 
-  const startEditingGrade = (gradeId, currentScore) => {
-    setEditingGradeId(gradeId);
-    setEditingScoreCode(currentScore);
-  };
-
-  const saveEditedGrade = (gradeId) => {
+  const startEditing = (id, score) => { setEditingGradeId(id); setEditingScore(score); };
+  const saveEdited   = (id) => {
     if (!activeCourse) return;
-    const nextArr = activeCourse.grades.map(g => {
-      if (g.id === gradeId) {
-        return { ...g, score: Number(editingScoreCode) };
-      }
-      return g;
-    });
-    onUpdateCourseGrades(activeCourse.id, nextArr);
+    const updated = currentGrades.map(g => g.id === id ? { ...g, score: Number(editingScore) } : g);
+    onUpdateCourseGrades(activeCourse.id, updated);
     setEditingGradeId(null);
   };
 
   return (
-    <div className="flex flex-col gap-6">
-      
-      {/* Top Workspace Stats Card */}
-      <div className="grid grid-cols-1 md-grid-cols-3 gap-4">
-        <div className="card flex flex-row items-center justify-between">
-          <div>
-            <span className="block text-xs font-bold uppercase tracking-wider text-slate-500">Computed Course Average</span>
-            <span className="text-3xl font-black text-emerald-600 block mt-1 font-mono">{averageGradePercent.toFixed(1)}%</span>
-            <span className="text-xs text-slate-500 mt-1 block">Calculated via registered weighting</span>
-          </div>
-          <div className="p-3 bg-emerald-50 text-emerald-700" style={{borderRadius: '1rem'}}>
-            <TrendingUp className="w-6 h-6" />
-          </div>
-        </div>
+    <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
 
-        <div className="card flex flex-row items-center justify-between">
-          <div>
-            <span className="block text-xs font-bold uppercase tracking-wider text-slate-500">Active Graded Items</span>
-            <span className="text-3xl font-black text-slate-900 block mt-1 font-mono">{currentGrades.length} tasks</span>
-            <span className="text-xs text-slate-500 mt-1 block">Exams, homework sets, presentations</span>
+      {/* ── Course Hero Header ── */}
+      <div className="hero-banner">
+        <div style={{ position: "relative", zIndex: 1 }}>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: "1rem" }}>
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
+                <span className="badge cyan" style={{ background: "rgba(6,182,212,0.2)", color: "#22d3ee", border: "1px solid rgba(6,182,212,0.3)" }}>
+                  {activeCourse?.term || "Fall 2026"}
+                </span>
+                <span style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.4)", fontFamily: "var(--font-mono)" }}>
+                  {activeCourse?.room}
+                </span>
+              </div>
+              <h2 className="hero-title">{activeCourse?.code} — {activeCourse?.name}</h2>
+              <p className="hero-desc">{activeCourse?.schedule} · Instructor: {activeCourse?.teacherName}</p>
+            </div>
+            <div style={{ display: "flex", gap: "0.5rem" }}>
+              <button className="btn btn-secondary btn-sm"><Users size={13} /> Enroll Student</button>
+              <button className="btn btn-cyan btn-sm"><FileText size={13} /> Print Roster</button>
+            </div>
           </div>
-          <div className="p-3 bg-indigo-50 text-indigo-700" style={{borderRadius: '1rem'}}>
-            <Award className="w-6 h-6" />
-          </div>
-        </div>
-
-        <div className="card flex flex-row items-center justify-between">
-          <div>
-            <span className="block text-xs font-bold uppercase tracking-wider text-slate-500">Total Class Cohort Size</span>
-            <span className="text-3xl font-black text-slate-900 block mt-1 font-mono">{studentsInClass.length} active</span>
-            <span className="text-xs text-emerald-500 font-bold block mt-1">100% compliant logs</span>
-          </div>
-          <div className="p-3 bg-amber-50 text-amber-700" style={{borderRadius: '1rem'}}>
-            <Users className="w-6 h-6" />
-          </div>
-        </div>
-      </div>
-
-      {/* Grades editing and beautiful grade item distribution bar list */}
-      <div className="grid grid-cols-1 lg-grid-cols-3 gap-6">
-        
-        {/* Graded registry table */}
-        <div className="card lg-col-span-2">
-          <div className="card-header">
-            <h3 className="card-title">Course Level Assignment Grade Matrix</h3>
-            <p className="card-subtitle">Instantly modify scores corresponding to syllabus tasks to dynamic compute updated averages.</p>
-          </div>
-
-          <div className="list-container mt-4">
-            {currentGrades.map(grade => (
-              <div key={grade.id} className="list-item flex flex-row items-center justify-between gap-4 font-mono text-xs">
-                <div className="space-y-1 font-sans">
-                  <span className="block font-bold text-slate-800 text-sm">{grade.title}</span>
-                  <div className="flex items-center gap-1 text-xs text-slate-500">
-                    <span>Syllabus Weight:</span>
-                    <span className="bg-slate-100 font-mono text-slate-700 px-1.5 py-0.5 rounded font-bold">{grade.weight}%</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-4">
-                  {editingGradeId === grade.id ? (
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        value={editingScoreCode}
-                        onChange={(e) => setEditingScoreCode(Number(e.target.value))}
-                        max={grade.maxScore}
-                        min={0}
-                        className="form-input w-16 p-1 text-center font-bold"
-                        placeholder={`${grade.score}`}
-                      />
-                      <span className="text-slate-400">/ {grade.maxScore}</span>
-                      <button
-                        onClick={() => saveEditedGrade(grade.id)}
-                        className="btn-primary flex items-center gap-1"
-                        style={{padding: '0.25rem 0.5rem', fontSize: '0.625rem'}}
-                      >
-                        <Save className="w-3.5 h-3.5" /> Save
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-3">
-                      <span className="text-slate-700 font-bold block">{grade.score} <span className="text-slate-400">/ {grade.maxScore}</span></span>
-                      <span className="text-emerald-700 bg-emerald-50 border border-emerald-100 rounded px-1.5 py-0.5 font-bold" style={{fontSize: '0.625rem'}}>
-                        {((grade.score / grade.maxScore) * 100).toFixed(0)}%
-                      </span>
-
-                      <button
-                        onClick={() => startEditingGrade(grade.id, grade.score)}
-                        className="p-1 text-slate-400 hover-text-indigo-600"
-                        title="Update assignment metrics"
-                        style={{transition: 'color 0.2s'}}
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  )}
-                </div>
+          {/* Quick stats row */}
+          <div style={{ display: "flex", gap: "1.5rem", marginTop: "1.25rem" }}>
+            {[
+              { label: "Enrolled",       value: studentsInClass.length || 24 },
+              { label: "Avg. Grade",     value: `${avgPct.toFixed(1)}%` },
+              { label: "Assignments",    value: currentGrades.length },
+            ].map(s => (
+              <div key={s.label} style={{ textAlign: "center" }}>
+                <div style={{ fontSize: "1.5rem", fontWeight: 900, color: "white", letterSpacing: "-0.03em" }}>{s.value}</div>
+                <div style={{ fontSize: "0.6875rem", color: "rgba(255,255,255,0.5)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>{s.label}</div>
               </div>
             ))}
           </div>
         </div>
+      </div>
 
-        {/* Performance dispersed bar diagnostics */}
-        <div className="card space-y-4">
-          <div className="card-header">
-            <h3 className="card-title">Grade dispersal diagnostics</h3>
-            <p className="card-subtitle">Relative scoring compared weight components mapping.</p>
-          </div>
+      {/* ── Two-column layout ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 300px", gap: "1.25rem", alignItems: "start" }}>
 
-          <div className="space-y-4 pt-4">
-            {currentGrades.map(g => {
-              const pct = (g.score / g.maxScore) * 100;
-              let barColor = "var(--color-amber-500)";
-              if (pct >= 80) barColor = "var(--color-indigo-500)";
-              if (pct >= 90) barColor = "var(--color-emerald-500)";
+        {/* ── LEFT ── */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
 
-              return (
-                <div key={g.id} className="space-y-1">
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-slate-600 font-bold">{g.title}</span>
-                    <span className="text-slate-400 font-mono">{pct.toFixed(0)}% score</span>
-                  </div>
-                  {/* Custom visual progress bar */}
-                  <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                    <div 
-                      style={{ width: `${pct}%`, backgroundColor: barColor }}
-                      className="h-full rounded-full"
-                    />
-                  </div>
+          {/* Gradebook Entry */}
+          <div className="card">
+            <div className="card-header">
+              <div className="card-header-left">
+                <div className="card-icon indigo" style={{ background: "#eef2ff", color: "#4f46e5" }}>
+                  <Edit2 size={15} />
                 </div>
-              );
-            })}
+                <div>
+                  <div className="card-title">Gradebook Entry</div>
+                  <div className="card-subtitle">{activeCourse?.code} — {activeCourse?.name?.slice(0, 30)}</div>
+                </div>
+              </div>
+              <button
+                className="btn btn-primary btn-sm"
+                id="teacher-save-grades-btn"
+                onClick={() => setEditingGradeId(null)}
+              >
+                <Save size={13} /> Save All
+              </button>
+            </div>
+
+            <div className="table-wrapper">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Assignment</th>
+                    <th style={{ textAlign: "center" }}>Points</th>
+                    <th style={{ textAlign: "center" }}>Max</th>
+                    <th style={{ textAlign: "center" }}>Weight</th>
+                    <th style={{ textAlign: "center" }}>Score %</th>
+                    <th>Status</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {currentGrades.map(g => {
+                    const pct = (g.score / g.maxScore) * 100;
+                    const isEditing = editingGradeId === g.id;
+                    const chipColor = pct >= 90 ? "emerald" : pct >= 80 ? "indigo" : pct >= 70 ? "amber" : "rose";
+                    return (
+                      <tr key={g.id}>
+                        <td style={{ fontWeight: 600, color: "var(--color-slate-900)" }}>{g.title}</td>
+                        <td style={{ textAlign: "center" }}>
+                          {isEditing ? (
+                            <input
+                              type="number"
+                              value={editingScore}
+                              onChange={e => setEditingScore(e.target.value)}
+                              className="form-input"
+                              style={{ width: "60px", textAlign: "center", padding: "0.25rem 0.375rem", fontSize: "0.8125rem" }}
+                              min={0} max={g.maxScore}
+                              autoFocus
+                            />
+                          ) : (
+                            <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700 }}>{g.score}</span>
+                          )}
+                        </td>
+                        <td style={{ textAlign: "center", fontFamily: "var(--font-mono)", color: "var(--color-slate-500)" }}>{g.maxScore}</td>
+                        <td style={{ textAlign: "center", fontFamily: "var(--font-mono)", color: "var(--color-slate-500)" }}>{g.weight}%</td>
+                        <td style={{ textAlign: "center" }}>
+                          <span className={`badge ${chipColor}`} style={{ fontFamily: "var(--font-mono)" }}>
+                            {pct.toFixed(0)}%
+                          </span>
+                        </td>
+                        <td>
+                          <span className={`status-pill ${pct >= 60 ? "active" : "suspended"}`}>
+                            <span style={{ width: 5, height: 5, borderRadius: "50%", background: "currentColor", flexShrink: 0 }} />
+                            {pct >= 80 ? "Excellent" : pct >= 70 ? "Passing" : "Needs Work"}
+                          </span>
+                        </td>
+                        <td>
+                          {isEditing ? (
+                            <button className="btn btn-primary btn-icon btn-sm" onClick={() => saveEdited(g.id)}>
+                              <CheckCircle size={13} />
+                            </button>
+                          ) : (
+                            <button className="btn btn-ghost btn-icon btn-sm" onClick={() => startEditing(g.id, g.score)}>
+                              <Edit2 size={13} />
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
 
-          <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 text-xs text-slate-500 mt-6 leading-relaxed">
-            <span className="block font-bold text-slate-700 mb-1">Analytics evaluation</span>
-            <p>Assignments tracking are mostly within the expected standard deviation. Keep monitoring homework set averages.</p>
+          {/* Course Materials */}
+          <div className="card">
+            <div className="card-header">
+              <div className="card-header-left">
+                <div className="card-icon amber" style={{ background: "#fffbeb", color: "#d97706" }}>
+                  <FileText size={15} />
+                </div>
+                <div className="card-title">Course Materials</div>
+              </div>
+              <button className="btn btn-secondary btn-sm"><Upload size={13} /> Upload</button>
+            </div>
+            <div>
+              {COURSE_MATERIALS.map((m, i) => (
+                <div key={i} className="list-row">
+                  <div className="list-row-left">
+                    <span style={{
+                      fontSize: "0.6rem", fontWeight: 800, background: m.type === "PDF" ? "#fff1f2" : "#eef2ff",
+                      color: m.type === "PDF" ? "#be123c" : "#4338ca",
+                      padding: "0.2rem 0.4rem", borderRadius: "0.25rem", fontFamily: "var(--font-mono)"
+                    }}>{m.type}</span>
+                    <div>
+                      <div style={{ fontSize: "0.8125rem", fontWeight: 600, color: "var(--color-slate-900)" }}>{m.name}</div>
+                      <div style={{ fontSize: "0.7rem", color: "var(--color-slate-400)" }}>{m.size}</div>
+                    </div>
+                  </div>
+                  <button className="btn btn-ghost btn-sm">Download</button>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
+        {/* ── RIGHT ── */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+
+          {/* Grade Distribution */}
+          <div className="card">
+            <div className="card-header">
+              <div className="card-header-left">
+                <div className="card-icon indigo" style={{ background: "#eef2ff", color: "#4f46e5" }}>
+                  <BarChart3 size={15} />
+                </div>
+                <div className="card-title">Grade Distribution</div>
+              </div>
+            </div>
+            <div style={{ padding: "0.875rem" }}>
+              <GradeDistChart grades={currentGrades} />
+              <div style={{ marginTop: "0.75rem", padding: "0.625rem", background: "#f8fafc", borderRadius: "0.625rem", textAlign: "center" }}>
+                <span style={{ fontSize: "0.75rem", color: "var(--color-slate-500)" }}>Course Average: </span>
+                <span style={{ fontFamily: "var(--font-mono)", fontWeight: 800, color: "var(--color-emerald-700)", fontSize: "0.875rem" }}>
+                  {avgPct.toFixed(1)}%
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Today's Schedule */}
+          <div className="card">
+            <div className="card-header">
+              <div className="card-header-left">
+                <div className="card-icon emerald" style={{ background: "#ecfdf5", color: "#059669" }}>
+                  <Calendar size={15} />
+                </div>
+                <div className="card-title">Today's Schedule</div>
+              </div>
+            </div>
+            <div>
+              {SCHEDULE_TODAY.map((s, i) => {
+                const isDone = s.status === "Completed";
+                return (
+                  <div key={i} className="list-row">
+                    <div className="list-row-left">
+                      <div style={{
+                        width: 8, height: 8, borderRadius: "50%", flexShrink: 0,
+                        background: isDone ? "var(--color-emerald-500)" : "var(--color-primary)"
+                      }} />
+                      <div>
+                        <div style={{ fontSize: "0.8125rem", fontWeight: 700, color: "var(--color-slate-900)" }}>
+                          {s.course}
+                        </div>
+                        <div style={{ fontSize: "0.7rem", color: "var(--color-slate-400)", fontFamily: "var(--font-mono)" }}>
+                          {s.time} · {s.room}
+                        </div>
+                      </div>
+                    </div>
+                    <span className={`status-pill ${isDone ? "active" : "pending"}`} style={{ fontSize: "0.6rem" }}>
+                      {s.status}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Quick Stats */}
+          <div className="card">
+            <div className="card-header">
+              <div className="card-title">Quick Stats</div>
+            </div>
+            <div style={{ padding: "1rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+              {[
+                { label: "Pass Rate",    value: `${Math.round(currentGrades.filter(g => (g.score/g.maxScore)*100 >= 60).length / Math.max(currentGrades.length,1) * 100)}%`, color: "var(--color-emerald-600)" },
+                { label: "Avg Score",   value: `${avgPct.toFixed(1)}%`, color: "var(--color-indigo-600)" },
+                { label: "Assignments", value: `${currentGrades.length} items`, color: "var(--color-amber-600)" },
+              ].map(s => (
+                <div key={s.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: "0.8125rem", color: "var(--color-slate-600)", fontWeight: 600 }}>{s.label}</span>
+                  <span style={{ fontSize: "0.875rem", fontWeight: 800, color: s.color, fontFamily: "var(--font-mono)" }}>{s.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

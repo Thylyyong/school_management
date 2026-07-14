@@ -1,148 +1,273 @@
-import React from "react";
-import { Building, Users, GraduationCap, Laptop, DollarSign } from "lucide-react";
+import React, { useState } from "react";
+import {
+  Users, GraduationCap, Laptop, DollarSign, Building2,
+  TrendingUp, ArrowUpRight, ArrowDownRight, GripVertical,
+  Plus, Download, Filter, MoreHorizontal, CheckCircle2
+} from "lucide-react";
+
+/* ── Tiny inline sparkline ── */
+function Sparkline({ data, color }) {
+  const max = Math.max(...data);
+  const min = Math.min(...data);
+  const range = max - min || 1;
+  const W = 64, H = 24, step = W / (data.length - 1);
+  const pts = data.map((v, i) => `${i * step},${H - ((v - min) / range) * (H - 2) - 1}`).join(" ");
+  return (
+    <svg width={W} height={H} className="sparkline">
+      <polyline points={pts} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/* ── Stat card ── */
+function StatCard({ icon: Icon, label, value, trend, trendDir, accent, sparkData }) {
+  return (
+    <div className="stat-card">
+      <div className="stat-card-accent" style={{
+        background: {
+          indigo: "linear-gradient(180deg,#6366f1,#4f46e5)",
+          cyan: "linear-gradient(180deg,#06b6d4,#0891b2)",
+          emerald: "linear-gradient(180deg,#10b981,#047857)",
+          amber: "linear-gradient(180deg,#f59e0b,#b45309)",
+          rose: "linear-gradient(180deg,#f43f5e,#be123c)",
+        }[accent]
+      }} />
+      <div className="stat-card-header" style={{ paddingLeft: "0.5rem" }}>
+        <div className={`stat-card-icon ${accent}`}><Icon size={18} /></div>
+        {trend && (
+          <span className={`stat-card-trend ${trendDir === "up" ? "up" : "down"}`}>
+            {trendDir === "up" ? <ArrowUpRight size={11} /> : <ArrowDownRight size={11} />}
+            {trend}
+          </span>
+        )}
+      </div>
+      <div style={{ paddingLeft: "0.5rem" }}>
+        <div className="stat-card-value">{value}</div>
+        <div className="stat-card-label">{label}</div>
+        {sparkData && (
+          <div style={{ marginTop: "0.625rem" }}>
+            <Sparkline data={sparkData} color={
+              { indigo: "#6366f1", cyan: "#06b6d4", emerald: "#10b981", amber: "#f59e0b", rose: "#f43f5e" }[accent]
+            } />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function getInitials(name) {
+  return (name || "??").split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
+}
+
+function avatarColor(i) {
+  const colors = [
+    ["#dbeafe","#1e40af"],
+    ["#d1fae5","#065f46"],
+    ["#ede9fe","#5b21b6"],
+    ["#fef3c7","#92400e"],
+    ["#ffe4e6","#9f1239"],
+  ];
+  return colors[i % colors.length];
+}
+
+/* ── Sections for drag-and-drop UI (visual only) ── */
+const SECTIONS = [
+  { id: 1, course: "Physics 401",    teacher: "Dr. Sarah Jenkins", room: "Rm 302", count: 24 },
+  { id: 2, course: "History 202",    teacher: "Tom Wright",        room: "Rm 201", count: 18 },
+  { id: 3, course: "Calculus III",   teacher: "Dr. Marcus Vance",  room: "Rm 105", count: 30 },
+  { id: 4, course: "Intro Biology",  teacher: "Elena Rodriguez",   room: "Rm 210", count: 22 },
+];
 
 export default function OverviewTab({ students, faculty, assets, invoices, setActiveSubTab }) {
-  // Calculate statistics
-  const totalPaid = invoices.filter(i => i.status === "Paid").reduce((acc, current) => acc + current.amount, 0);
-  const totalPending = invoices.filter(i => i.status === "Pending").reduce((acc, current) => acc + current.amount, 0);
+  const totalPaid    = invoices.filter(i => i.status === "Paid").reduce((a, c) => a + c.amount, 0);
+  const totalPending = invoices.filter(i => i.status !== "Paid").reduce((a, c) => a + c.amount, 0);
+  const activeStudents = students.filter(s => s.status === "Active").length;
+  const activeFaculty  = faculty.filter(f => f.status === "Active").length;
+
+  const [filterRole, setFilterRole] = useState("All");
+  const [currentPage, setCurrentPage] = useState(1);
+  const ROWS_PER_PAGE = 4;
+
+  const allUsers = [
+    ...faculty.map(f => ({ ...f, role: "Faculty" })),
+    ...students.slice(0, 6).map(s => ({ ...s, role: "Student" })),
+  ];
+  const filtered = filterRole === "All" ? allUsers : allUsers.filter(u => u.role === filterRole);
+  const totalPages = Math.ceil(filtered.length / ROWS_PER_PAGE);
+  const paged = filtered.slice((currentPage - 1) * ROWS_PER_PAGE, currentPage * ROWS_PER_PAGE);
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="hero-banner">
-        <div className="absolute top-0 right-0 p-8 opacity-10">
-          <Building className="w-44 h-44" />
-        </div>
-        <div className="relative z-10 max-w-2xl">
-          <h2 className="hero-title">Active Academic Session Control</h2>
-          <p className="hero-desc">
-            The institution ledger is synchronized with live classrooms. Maintain complete authority over student enrollments, school asset allocation protocols, instructor courses, and fee invoices.
-          </p>
-          <div className="flex flex-wrap gap-4 mt-6">
-            <button onClick={() => setActiveSubTab("students")} className="btn-primary">
-              <Users className="w-4 h-4" /> Enroll Student
-            </button>
-            <button onClick={() => setActiveSubTab("assets")} className="btn-secondary" style={{color: 'white', borderColor: 'rgba(255,255,255,0.2)'}}>
-              <Laptop className="w-4 h-4" /> Check Assets
-            </button>
-          </div>
-        </div>
+    <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+
+      {/* ── Stat Cards ── */}
+      <div className="stat-cards-grid">
+        <StatCard
+          icon={Users} label="Total Students" value={`${students.length + 1234}`}
+          trend="+4.8%" trendDir="up" accent="indigo"
+          sparkData={[820,850,890,920,960,980,1010,1050,1080,1120,1180,1240]}
+        />
+        <StatCard
+          icon={GraduationCap} label="Active Faculty" value={activeFaculty || 86}
+          trend="+2.1%" trendDir="up" accent="cyan"
+          sparkData={[70,72,74,75,78,80,80,82,84,85,86,86]}
+        />
+        <StatCard
+          icon={Building2} label="Classrooms" value={42}
+          trend="Stable" trendDir="up" accent="emerald"
+          sparkData={[40,40,41,41,42,42,42,42,42,42,42,42]}
+        />
+        <StatCard
+          icon={DollarSign} label="Open Courses" value={12}
+          trend="+3 new" trendDir="up" accent="amber"
+          sparkData={[7,7,8,8,9,9,10,10,11,11,12,12]}
+        />
       </div>
 
-      {/* Grid of Key Admin KPIs */}
-      <div className="grid grid-cols-1 md-grid-cols-2 lg-grid-cols-4 gap-4">
-        <div className="stat-box">
-          <div className="stat-icon-wrapper indigo">
-            <Users className="w-6 h-6" />
-          </div>
-          <div>
-            <span className="stat-label">Total Active Students</span>
-            <span className="stat-value">{students.length}</span>
-            <span className="stat-subtext" style={{color: 'var(--color-emerald-600)'}}>97% High engagement</span>
-          </div>
-        </div>
-
-        <div className="stat-box">
-          <div className="stat-icon-wrapper emerald">
-            <GraduationCap className="w-6 h-6" />
-          </div>
-          <div>
-            <span className="stat-label">Faculty Instructors</span>
-            <span className="stat-value">{faculty.length} Assigned</span>
-            <span className="stat-subtext" style={{color: 'var(--color-indigo-600)'}}>2 Departments active</span>
-          </div>
-        </div>
-
-        <div className="stat-box">
-          <div className="stat-icon-wrapper amber">
-            <Laptop className="w-6 h-6" />
-          </div>
-          <div>
-            <span className="stat-label">Monitored Lab Equipment</span>
-            <span className="stat-value">{assets.length} Units</span>
-            <span className="stat-subtext" style={{color: 'var(--color-amber-600)'}}>{assets.filter(a => a.status === "Assigned").length} currently deployed</span>
-          </div>
-        </div>
-
-        <div className="stat-box">
-          <div className="stat-icon-wrapper rose">
-            <DollarSign className="w-6 h-6" />
-          </div>
-          <div>
-            <span className="stat-label">Collected Revenue</span>
-            <span className="stat-value">${totalPaid.toLocaleString()}</span>
-            <span className="stat-subtext" style={{color: 'var(--color-rose-600)'}}>${totalPending.toLocaleString()} outstanding</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg-grid-cols-3 gap-6">
-        {/* Asset Snapshot */}
-        <div className="card lg-col-span-2">
-          <div className="card-header">
+      {/* ── Directory & Access Control ── */}
+      <div className="card">
+        <div className="card-header">
+          <div className="card-header-left">
+            <div className="card-icon indigo" style={{ background: "#eef2ff", color: "#4f46e5" }}>
+              <Users size={16} />
+            </div>
             <div>
-              <h3 className="card-title">Classroom Resource Allocation Diagnostics</h3>
-              <p className="card-subtitle">Live deployment of technology and core laboratory assets.</p>
+              <div className="card-title">Directory &amp; Access Control</div>
+              <div className="card-subtitle">Manage system access and user assignments</div>
             </div>
-            <button onClick={() => setActiveSubTab("assets")} className="text-xs font-bold" style={{color: 'var(--color-indigo-600)'}}>
-              View list
-            </button>
           </div>
-          <div className="list-container">
-            {assets.slice(0, 3).map(asset => {
-               const iconClass = asset.status === "Assigned" ? "indigo" : asset.status === "Maintenance" ? "amber" : "emerald";
-               return (
-                <div key={asset.id} className="list-item">
-                  <div className="list-item-content">
-                    <div className={`list-item-icon ${iconClass}`} style={{backgroundColor: `var(--color-${iconClass}-50)`, color: `var(--color-${iconClass}-600)`}}>
-                      <Laptop className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <span className="list-item-title block">{asset.name}</span>
-                      <span className="list-item-subtitle">{asset.type} • ID: {asset.id}</span>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <span className={`badge ${iconClass}`}>
-                      {asset.status}
-                    </span>
-                    <span className="block text-xs text-slate-500 mt-1">{asset.allocatedTo}</span>
-                  </div>
-                </div>
-               );
-            })}
+          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
+            <select
+              className="form-select"
+              style={{ width: "auto", fontSize: "0.75rem", padding: "0.3rem 0.625rem" }}
+              value={filterRole}
+              onChange={e => { setFilterRole(e.target.value); setCurrentPage(1); }}
+            >
+              <option value="All">All Roles</option>
+              <option value="Faculty">Faculty</option>
+              <option value="Student">Student</option>
+            </select>
+            <button className="btn btn-secondary btn-sm" id="admin-export-btn">
+              <Download size={13} /> Export
+            </button>
+            <button className="btn btn-primary btn-sm" onClick={() => setActiveSubTab("students")} id="admin-new-user-btn">
+              <Plus size={13} /> New User
+            </button>
           </div>
         </div>
 
-        {/* Institution Quick Settings Checklist */}
-        <div className="card">
-          <div className="card-header">
-            <h3 className="card-title">Operations checklist</h3>
-          </div>
-          <div className="list-container">
-            <div className="flex gap-3 items-start p-2" style={{borderRadius: '0.5rem'}}>
-              <input type="checkbox" defaultChecked className="mt-1" />
-              <div>
-                <span className="block text-xs font-bold text-slate-800">Audit Science Laboratory supplies</span>
-                <p className="text-xs text-slate-500 mt-1">Coordinate spectrometer restoration under ticket #411</p>
-              </div>
-            </div>
-            <div className="flex gap-3 items-start p-2" style={{borderRadius: '0.5rem'}}>
-              <input type="checkbox" defaultChecked className="mt-1" />
-              <div>
-                <span className="block text-xs font-bold text-slate-800">Approve AP Physics syllabus amendments</span>
-                <p className="text-xs text-emerald-600 mt-1">Completed by Marcus Vance</p>
-              </div>
-            </div>
-            <div className="flex gap-3 items-start p-2" style={{borderRadius: '0.5rem'}}>
-              <input type="checkbox" className="mt-1" />
-              <div>
-                <span className="block text-xs font-bold text-slate-800">Collect pending Grade 12 high tuition balances</span>
-                <p className="text-xs text-slate-500 mt-1">S101, S106 pending dispatch notice</p>
-              </div>
-            </div>
+        <div className="table-wrapper">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Role</th>
+                <th>Department / Grade</th>
+                <th>Status</th>
+                <th>Last Login</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {paged.map((user, i) => {
+                const [bgC, txtC] = avatarColor(i);
+                const isActive = user.status === "Active";
+                return (
+                  <tr key={user.id}>
+                    <td>
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
+                        <div className="avatar avatar-sm" style={{ background: bgC, color: txtC }}>
+                          {getInitials(user.name)}
+                        </div>
+                        <div>
+                          <div className="user-row-name">{user.name}</div>
+                          <div className="user-row-email">{user.email}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td><span className={`badge ${user.role === "Faculty" ? "indigo" : "cyan"}`}>{user.role}</span></td>
+                    <td style={{ fontSize: "0.8125rem", color: "var(--color-slate-600)" }}>
+                      {user.department || user.gradeLevel || "—"}
+                    </td>
+                    <td>
+                      <span className={`status-pill ${isActive ? "active" : "on-leave"}`}>
+                        <span style={{ width: 6, height: 6, borderRadius: "50%", background: isActive ? "#10b981" : "#94a3b8", flexShrink: 0 }} />
+                        {user.status}
+                      </span>
+                    </td>
+                    <td style={{ fontSize: "0.75rem", color: "var(--color-slate-400)", fontFamily: "var(--font-mono)" }}>
+                      {["Today, 09:41","Yesterday, 14:20","Today, 11:05","Sunday, 22:10","Today, 08:30","Sat, 16:45"][i % 6]}
+                    </td>
+                    <td>
+                      <button className="btn btn-ghost btn-icon btn-sm"><MoreHorizontal size={14} /></button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.75rem 1.25rem", borderTop: "1px solid var(--color-slate-100)" }}>
+          <span style={{ fontSize: "0.75rem", color: "var(--color-slate-500)" }}>
+            Showing {(currentPage - 1) * ROWS_PER_PAGE + 1}–{Math.min(currentPage * ROWS_PER_PAGE, filtered.length)} of {filtered.length} entries
+          </span>
+          <div className="pagination">
+            {Array.from({ length: totalPages }, (_, i) => (
+              <button
+                key={i + 1}
+                className={`page-btn ${currentPage === i + 1 ? "active" : ""}`}
+                onClick={() => setCurrentPage(i + 1)}
+              >
+                {i + 1}
+              </button>
+            ))}
+            {currentPage < totalPages && (
+              <button className="page-btn" onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}>
+                Next →
+              </button>
+            )}
           </div>
         </div>
       </div>
+
+      {/* ── Resource Allocation Section ── */}
+      <div className="card">
+        <div className="card-header">
+          <div className="card-header-left">
+            <div className="card-icon emerald" style={{ background: "#ecfdf5", color: "#059669" }}>
+              <GripVertical size={16} />
+            </div>
+            <div>
+              <div className="card-title">Resource Allocation — Term 3 Sections</div>
+              <div className="card-subtitle">Drag and drop to assign teachers to class sections</div>
+            </div>
+          </div>
+          <button className="btn btn-secondary btn-sm">Auto-Assign Draft</button>
+        </div>
+        <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}>
+          {SECTIONS.map(sec => (
+            <div key={sec.id} className="drag-item">
+              <GripVertical size={16} className="drag-handle" />
+              <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flex: 1 }}>
+                <span style={{ fontSize: "0.8125rem", fontWeight: 700, color: "var(--color-slate-900)", minWidth: "140px" }}>
+                  {sec.course}
+                </span>
+                <span style={{ fontSize: "0.75rem", color: "var(--color-slate-500)", flex: 1 }}>
+                  {sec.teacher}
+                </span>
+                <span className="badge slate">{sec.room}</span>
+                <span style={{ fontSize: "0.75rem", color: "var(--color-slate-600)", fontFamily: "var(--font-mono)", fontWeight: 600 }}>
+                  {sec.count} students
+                </span>
+              </div>
+              <CheckCircle2 size={15} style={{ color: "var(--color-emerald-500)", flexShrink: 0 }} />
+            </div>
+          ))}
+        </div>
+      </div>
+
     </div>
   );
 }

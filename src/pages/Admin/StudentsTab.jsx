@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Search, PlusCircle, Trash2 } from "lucide-react";
+import { Search, Plus, Trash2, UserPlus } from "lucide-react";
 
 export default function StudentsTab({ students, onAddStudent, onDeleteStudent }) {
   // Local state for this tab
@@ -42,38 +42,32 @@ export default function StudentsTab({ students, onAddStudent, onDeleteStudent })
   });
 
   return (
-    <div className="flex flex-col gap-6">
+    <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
       
-      <div className="flex flex-col md-flex-row items-center justify-between gap-4">
+      <div className="page-section-header">
         <div>
-          <h2 className="text-xl font-bold text-slate-900">Student Directory & Profiles</h2>
-          <p className="text-xs text-slate-500">Review status, parents contact logs, registration indexes and attendance averages.</p>
+          <div className="page-section-title">Student Directory</div>
+          <div className="page-section-subtitle">Review enrollment status, attendance, and contact information.</div>
         </div>
-
-        <div className="flex items-center gap-2 w-full" style={{maxWidth: '24rem'}}>
-          <div className="search-container">
-            <span className="search-icon"><Search className="w-4 h-4" /></span>
+        <div className="page-section-actions">
+          <div className="search-container" style={{ minWidth: 220 }}>
+            <Search size={14} className="search-icon" />
             <input
               type="text"
               value={studentsSearch}
-              onChange={(e) => setStudentsSearch(e.target.value)}
-              placeholder="Search by name, grade, status..."
+              onChange={e => setStudentsSearch(e.target.value)}
+              placeholder="Search students…"
               className="search-input"
             />
           </div>
-
-          <button
-            onClick={() => setShowAddStudentForm(!showAddStudentForm)}
-            className="btn-primary"
-          >
-            <PlusCircle className="w-4 h-4" /> Onboard
+          <button className="btn btn-primary btn-sm" id="admin-add-student-btn" onClick={() => setShowAddStudentForm(v => !v)}>
+            <UserPlus size={14} /> {showAddStudentForm ? "Cancel" : "Add Student"}
           </button>
         </div>
       </div>
 
-      {/* Modal Onboarding form */}
       {showAddStudentForm && (
-        <form onSubmit={handleCreateStudent} className="card" style={{borderColor: 'var(--color-indigo-200)'}}>
+        <form onSubmit={handleCreateStudent} className="card" style={{ border: "1.5px solid var(--color-indigo-200)" }}>
           <div className="card-header">
             <h3 className="card-title" style={{color: 'var(--color-indigo-900)'}}>Add New Student Profile on Core Registry</h3>
             <button type="button" onClick={() => setShowAddStudentForm(false)} className="text-xs text-slate-400">Cancel</button>
@@ -134,69 +128,61 @@ export default function StudentsTab({ students, onAddStudent, onDeleteStudent })
         </form>
       )}
 
-      {/* Students Table */}
-      <div className="card" style={{padding: 0, overflow: 'hidden'}}>
+      <div className="card" style={{ padding: 0, overflow: "hidden" }}>
         <div className="table-wrapper">
           <table className="table">
             <thead>
               <tr>
-                <th>Student ID / Name</th>
-                <th>Grade level</th>
-                <th>Academic Email</th>
-                <th>Emergency details</th>
-                <th>Attendance Percent</th>
+                <th>Student</th>
+                <th>Grade</th>
+                <th>Email</th>
+                <th>Parent Contact</th>
+                <th>Attendance</th>
                 <th>Status</th>
-                <th className="text-right">Records action</th>
+                <th style={{ textAlign: "right" }}>Action</th>
               </tr>
             </thead>
             <tbody>
               {filteredStudents.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="text-center text-slate-400 py-8">
-                    No matching student records found. Enter alternate query parameters.
+                  <td colSpan="7" style={{ textAlign: "center", padding: "2rem", color: "var(--color-slate-400)" }}>
+                    No matching students found.
                   </td>
                 </tr>
-              ) : (
-                filteredStudents.map((st) => {
-                  let statusClass = "emerald";
-                  if (st.status === "On Leave") statusClass = "amber";
-                  if (st.status === "Suspended") statusClass = "rose";
-
-                  return (
-                    <tr key={st.id}>
-                      <td>
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded text-[10px] font-bold border border-indigo-100">
-                            {st.id}
-                          </span>
-                          <span className="font-semibold text-slate-800">{st.name}</span>
+              ) : filteredStudents.map((st, i) => {
+                const statusCls = st.status === "Active" ? "active" : st.status === "On Leave" ? "on-leave" : "suspended";
+                const bgColors = [["#dbeafe","#1e40af"],["#d1fae5","#065f46"],["#ede9fe","#5b21b6"],["#fef3c7","#92400e"],["#ffe4e6","#9f1239"]];
+                const [bg, tx] = bgColors[i % bgColors.length];
+                return (
+                  <tr key={st.id}>
+                    <td>
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
+                        <div className="avatar avatar-sm" style={{ background: bg, color: tx }}>
+                          {st.name.split(" ").map(w => w[0]).join("").slice(0,2).toUpperCase()}
                         </div>
-                      </td>
-                      <td>{st.gradeLevel}</td>
-                      <td className="font-mono">{st.email}</td>
-                      <td>{st.parentContact}</td>
-                      <td className="font-mono font-bold text-indigo-600">
+                        <div>
+                          <div className="user-row-name">{st.name}</div>
+                          <div style={{ fontSize: "0.6875rem", color: "var(--color-slate-400)", fontFamily: "var(--font-mono)" }}>{st.id}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td style={{ fontSize: "0.8125rem", color: "var(--color-slate-600)" }}>{st.gradeLevel}</td>
+                    <td style={{ fontSize: "0.75rem", fontFamily: "var(--font-mono)", color: "var(--color-slate-500)" }}>{st.email}</td>
+                    <td style={{ fontSize: "0.8125rem", color: "var(--color-slate-600)" }}>{st.parentContact}</td>
+                    <td>
+                      <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: "0.8125rem", color: st.attendancePercent >= 90 ? "var(--color-emerald-700)" : "var(--color-amber-700)" }}>
                         {st.attendancePercent}%
-                      </td>
-                      <td>
-                        <span className={`badge ${statusClass}`}>
-                          {st.status}
-                        </span>
-                      </td>
-                      <td className="text-right">
-                        <button
-                          onClick={() => onDeleteStudent(st.id)}
-                          className="p-1 text-slate-400 hover-text-rose-600"
-                          style={{transition: 'color 0.2s'}}
-                          title="Delete Student Record"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </td>
-                    </tr>
-                  )
-                })
-              )}
+                      </span>
+                    </td>
+                    <td><span className={`status-pill ${statusCls}`}><span style={{ width:5,height:5,borderRadius:"50%",background:"currentColor",flexShrink:0 }} />{st.status}</span></td>
+                    <td style={{ textAlign: "right" }}>
+                      <button className="btn btn-danger btn-icon btn-sm" onClick={() => onDeleteStudent(st.id)} title="Remove student">
+                        <Trash2 size={13} />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
