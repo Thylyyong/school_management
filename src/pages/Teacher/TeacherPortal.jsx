@@ -54,7 +54,7 @@ export default function TeacherPortal({
     <div className="app-wrapper">
       
       {/* Top Header of Teacher portal */}
-      <header className="portal-header bg-slate-900" style={{backgroundColor: 'var(--color-slate-900)'}}>
+      <header className="portal-header">
         <div className="portal-header-content">
           
           <div className="header-title-group">

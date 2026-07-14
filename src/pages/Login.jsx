@@ -1,42 +1,85 @@
-import React, { useState } from "react";
-import { GraduationCap, Landmark, ShieldAlert, Award, Star, BookOpen, UserCheck, Key, Users, ArrowRight } from "lucide-react";
-import "./Login.css"; // Import the specific CSS file for login
+import React, { useEffect, useMemo, useState } from "react";
+import { GraduationCap, Landmark, ShieldAlert, BookOpen, UserCheck, Key, ArrowRight, Star } from "lucide-react";
+import "./Login.css";
+
+import { loginWithIdUserAndPassword } from "../auth/authService";
+import { setSession, clearSession, getSession } from "../auth/session";
 
 /**
  * Login Component
- * 
- * This component displays the login screen for EduManager Pro.
- * It uses React state to keep track of the user's input and selected role.
+ *
+ * Secure-ish prototype login using ID + password and role selection.
+ * No auto-available launch users and no demo quick buttons.
  */
 export default function Login({ onLoginSuccess }) {
   const [selectedRole, setSelectedRole] = useState("student");
-  const [username, setUsername] = useState("");
+  const [idUser, setIdUser] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const roleLabel = useMemo(() => {
+    if (selectedRole === "admin") return "Admin Identifier";
+    if (selectedRole === "teacher") return "Teacher Identifier";
+    return "Student Identifier";
+  }, [selectedRole]);
+
+  useEffect(() => {
+    // If a session exists, restore it immediately.
+    const s = getSession();
+    if (s?.role && s?.idUser) {
+      onLoginSuccess(s.role, s.idUser);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    setError("");
+  }, [selectedRole]);
 
   const handleRoleSelect = (role) => {
     setSelectedRole(role);
-    setError(""); 
-    if (role === "admin") setUsername("admin@edumanager.org");
-    else if (role === "teacher") setUsername("marcus.vance@edumanager.org");
-    else setUsername("amira.patel@edumanager.org");
+    setIdUser("");
+    setPassword("");
+    setError("");
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault(); 
-    if (!username.trim() || !password.trim()) {
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+
+    if (!idUser.trim() || !password.trim()) {
       setError("Please fill in all security fields.");
       return;
     }
-    setError("");
-    onLoginSuccess(selectedRole, username);
+
+    // Normalize common user input errors
+    const normalizedRole = selectedRole;
+    const normalizedId = idUser.trim();
+    const normalizedPassword = password;
+
+
+    setLoading(true);
+    try {
+      const res = await loginWithIdUserAndPassword({
+        role: normalizedRole,
+        idUser: normalizedId,
+        password: normalizedPassword,
+      });
+
+      if (!res.ok) {
+        setError(res.error || "Login failed.");
+        return;
+      }
+
+      clearSession();
+      setSession(res.session);
+      onLoginSuccess(res.session.role, res.session.idUser);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const triggerQuickLogin = (role, demoUser) => {
-    setUsername(demoUser);
-    setPassword("password123");
-    onLoginSuccess(role, demoUser);
-  };
 
   return (
     <div className="login-screen">
@@ -50,14 +93,14 @@ export default function Login({ onLoginSuccess }) {
 
         {/* Top school branding */}
         <div style={{position: 'relative', zIndex: 10, display: 'flex', alignItems: 'center', gap: '0.75rem'}}>
-          <div style={{padding: '0.625rem', backgroundColor: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(12px)', borderRadius: '1rem', border: '2px solid var(--color-dark)', boxShadow: 'var(--shadow-brutal-md)'}}>
-            <GraduationCap className="w-8 h-8" style={{color: 'var(--color-light)'}} />
+          <div style={{padding: '0.625rem', backgroundColor: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(12px)', borderRadius: '1rem', border: '1px solid rgba(255,255,255,0.25)', boxShadow: 'var(--shadow-md)'}}>
+            <GraduationCap className="w-8 h-8" style={{color: 'white'}} />
           </div>
           <div>
-            <h1 style={{fontSize: '1.5rem', fontWeight: 900, letterSpacing: '-0.025em', color: 'white', textShadow: '0 1px 2px rgba(0,0,0,0.1)'}}>
+            <h1 style={{fontSize: '1.5rem', fontWeight: 900, letterSpacing: '-0.025em', color: 'white'}}>
               EduManager Pro
             </h1>
-            <p style={{fontSize: '0.75rem', color: '#fef3c7', fontFamily: 'var(--font-mono)', letterSpacing: '0.05em', fontWeight: 700}}>ARTISAN ACADEMIC v4.2</p>
+            <p style={{fontSize: '0.75rem', color: 'rgba(255,255,255,0.8)', fontFamily: 'var(--font-mono)', letterSpacing: '0.05em', fontWeight: 700}}>ARTISAN ACADEMIC v4.2</p>
           </div>
         </div>
 
@@ -138,22 +181,17 @@ export default function Login({ onLoginSuccess }) {
           <form onSubmit={handleSubmit} style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
             <div>
               <label style={{display: 'block', fontSize: '0.625rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-dark)', marginBottom: '0.375rem'}}>
-                {selectedRole === "admin" ? "Admin Identifier" : selectedRole === "teacher" ? "Teacher Email" : "Student Email"}
+                {roleLabel}
               </label>
               <div className="login-input-wrapper">
                 <span className="login-input-icon"><UserCheck className="w-4 h-4" /></span>
                 <input
                   type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder={
-                    selectedRole === "admin"
-                      ? "admin@edumanager.org"
-                      : selectedRole === "teacher"
-                      ? "marcus.vance@edumanager.org"
-                      : "amira.patel@edumanager.org"
-                  }
+                  value={idUser}
+                  onChange={(e) => setIdUser(e.target.value)}
+                  placeholder={selectedRole === 'admin' ? 'A-100' : selectedRole === 'teacher' ? 'T-200' : 'S-300'}
                   className="login-input"
+                  autoComplete="username"
                 />
               </div>
             </div>
@@ -170,6 +208,7 @@ export default function Login({ onLoginSuccess }) {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••••••••"
                   className="login-input"
+                  autoComplete="current-password"
                 />
               </div>
             </div>
@@ -181,41 +220,20 @@ export default function Login({ onLoginSuccess }) {
               </div>
             )}
 
-            <button type="submit" className="login-submit-btn">
-              Initialize Command Deck
+            <button type="submit" className="login-submit-btn" disabled={loading} style={{opacity: loading ? 0.7 : 1}}>
+              {loading ? 'Signing in...' : 'Initialize Command Deck'}
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
 
-          {/* Magical Demo Portals */}
-          <div className="quick-demo-section">
-            <h4 style={{fontSize: '0.625rem', fontWeight: 900, color: 'var(--color-slate-500)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center', marginBottom: '1rem'}}>
-              Instant Demo Access Tiers
-            </h4>
-            <div style={{display: 'flex', flexDirection: 'column'}}>
-              <button onClick={() => triggerQuickLogin("student", "amira.patel@edumanager.org")} className="quick-demo-btn">
-                <span style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
-                  <span style={{fontFamily: 'var(--font-mono)', backgroundColor: 'var(--color-indigo-100)', color: 'var(--color-indigo-700)', padding: '0.125rem 0.375rem', borderRadius: '0.25rem', fontSize: '0.5rem', fontWeight: 800, border: '1px solid var(--color-indigo-200)'}}>STUDENT</span>
-                  Amira Patel
-                </span>
-                <span style={{fontSize: '0.625rem', color: 'var(--color-indigo-600)', display: 'flex', alignItems: 'center', gap: '0.125rem', fontWeight: 800}}>Launch &rarr;</span>
-              </button>
-
-              <button onClick={() => triggerQuickLogin("teacher", "marcus.vance@edumanager.org")} className="quick-demo-btn">
-                <span style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
-                  <span style={{fontFamily: 'var(--font-mono)', backgroundColor: 'var(--color-emerald-100)', color: 'var(--color-emerald-700)', padding: '0.125rem 0.375rem', borderRadius: '0.25rem', fontSize: '0.5rem', fontWeight: 800, border: '1px solid var(--color-emerald-200)'}}>FACULTY</span>
-                  Dr. Marcus Vance
-                </span>
-                <span style={{fontSize: '0.625rem', color: 'var(--color-emerald-600)', display: 'flex', alignItems: 'center', gap: '0.125rem', fontWeight: 800}}>Launch &rarr;</span>
-              </button>
-
-              <button onClick={() => triggerQuickLogin("admin", "admin@edumanager.org")} className="quick-demo-btn">
-                <span style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
-                  <span style={{fontFamily: 'var(--font-mono)', backgroundColor: 'var(--color-amber-100)', color: 'var(--color-accent-yellow-dark)', padding: '0.125rem 0.375rem', borderRadius: '0.25rem', fontSize: '0.5rem', fontWeight: 800, border: '1px solid var(--color-amber-200)'}}>SYSTEM</span>
-                  Administrator
-                </span>
-                <span style={{fontSize: '0.625rem', color: 'var(--color-amber-700)', display: 'flex', alignItems: 'center', gap: '0.125rem', fontWeight: 800}}>Launch &rarr;</span>
-              </button>
+          <div style={{marginTop: '1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-slate-500)', lineHeight: 1.6}}>
+            Default test accounts (enter ID + password):
+            <div style={{fontFamily: 'var(--font-mono)', marginTop: '0.5rem'}}>
+              Admin: <b>A-100</b> / <b>Admin@123</b>
+              <br />
+              Teacher: <b>T-200</b> / <b>Teacher@123</b>
+              <br />
+              Student: <b>S-300</b> / <b>Student@123</b>
             </div>
           </div>
         </div>
@@ -223,3 +241,4 @@ export default function Login({ onLoginSuccess }) {
     </div>
   );
 }
+

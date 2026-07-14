@@ -117,7 +117,13 @@ export default function App() {
   const handleLogout = () => {
     setCurrentUserRole(null);
     setCurrentUsername("");
+    try {
+      sessionStorage.removeItem('edu_session_v1');
+    } catch {
+      // ignore
+    }
   };
+
 
   // State mutation actions passed to Admin Portal
   const handleAddStudent = (newStudent) => {
@@ -205,17 +211,9 @@ export default function App() {
     ));
   };
 
-  // Hot swap control panel for standard testers to easily shift roles instantly
-  const shiftUserRoleInstantly = (role) => {
-    setCurrentUserRole(role);
-    if (role === "admin") {
-      setCurrentUsername("admin@edumanager.org");
-    } else if (role === "teacher") {
-      setCurrentUsername("marcus.vance@edumanager.org");
-    } else {
-      setCurrentUsername("amira.patel@edumanager.org");
-    }
-  };
+  // DEV ONLY: removed role swapping simulation (security requirement)
+  // const shiftUserRoleInstantly = (role) => {};
+
 
   return (
     <div className="app-wrapper">
@@ -285,58 +283,7 @@ export default function App() {
         )}
       </div>
 
-      {/* Persistent Tester Role Swapper floating anchor */}
-      {currentUserRole !== null && (
-        <div style={{
-          position: 'fixed', bottom: '1rem', right: '1rem', background: 'var(--color-slate-900)',
-          color: 'white', borderRadius: '1rem', padding: '0.75rem', zIndex: 50,
-          boxShadow: 'var(--shadow-lg)', display: 'flex', gap: '0.75rem', alignItems: 'center'
-        }}>
-          <div className="flex items-center gap-1">
-            <ShieldCheck className="w-4 h-4" style={{color: 'var(--color-emerald-400)'}} />
-            <span style={{fontSize: '0.625rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em'}}>Role swap simulation</span>
-          </div>
 
-          <div className="flex gap-1">
-            <button
-              onClick={() => shiftUserRoleInstantly("student")}
-              style={{
-                padding: '0.375rem', borderRadius: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem',
-                fontSize: '0.625rem', fontWeight: 800,
-                backgroundColor: currentUserRole === "student" ? 'var(--color-indigo-600)' : 'transparent',
-                color: currentUserRole === "student" ? 'white' : 'var(--color-slate-300)'
-              }}
-            >
-              <GraduationCap className="w-3.5 h-3.5" />
-              Student
-            </button>
-            <button
-              onClick={() => shiftUserRoleInstantly("teacher")}
-              style={{
-                padding: '0.375rem', borderRadius: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem',
-                fontSize: '0.625rem', fontWeight: 800,
-                backgroundColor: currentUserRole === "teacher" ? 'var(--color-emerald-600)' : 'transparent',
-                color: currentUserRole === "teacher" ? 'white' : 'var(--color-slate-300)'
-              }}
-            >
-              <Laptop className="w-3.5 h-3.5" />
-              Teacher
-            </button>
-            <button
-              onClick={() => shiftUserRoleInstantly("admin")}
-              style={{
-                padding: '0.375rem', borderRadius: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem',
-                fontSize: '0.625rem', fontWeight: 800,
-                backgroundColor: currentUserRole === "admin" ? 'var(--color-indigo-600)' : 'transparent',
-                color: currentUserRole === "admin" ? 'white' : 'var(--color-slate-300)'
-              }}
-            >
-              <Landmark className="w-3.5 h-3.5" />
-              Admin
-            </button>
-          </div>
-        </div>
-      )}
 
     </div>
   );
