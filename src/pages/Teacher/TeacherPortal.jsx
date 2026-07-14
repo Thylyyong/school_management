@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import {
   LayoutDashboard, TrendingUp, ClipboardList, Calendar,
   HelpCircle, Megaphone, LogOut, Bell, Search,
-  BookOpen, LifeBuoy
+  BookOpen, LifeBuoy, Menu
 } from "lucide-react";
 
 import GradesTab      from "./GradesTab.jsx";
@@ -45,6 +45,7 @@ export default function TeacherPortal({
   const [selectedCourseId, setSelectedCourseId] = useState(courses[0]?.id || "");
   const [supportOpen, setSupportOpen]       = useState(false);
   const [searchOpen, setSearchOpen]         = useState(false);
+  const [sidebarOpen, setSidebarOpen]       = useState(false);
 
   const activeCourse     = courses.find(c => c.id === selectedCourseId) || courses[0];
   const studentsInClass  = students.filter(s => s.status === "Active");
@@ -66,10 +67,14 @@ export default function TeacherPortal({
         role="teacher"
       />
 
+      {sidebarOpen && (
+        <div className="mobile-overlay active" onClick={() => setSidebarOpen(false)}></div>
+      )}
+
       <div className="portal-layout animate-fade-in">
 
         {/* ═══ SIDEBAR ═══ */}
-        <aside className="sidebar">
+        <aside className={`sidebar ${sidebarOpen ? 'mobile-open' : ''}`}>
           <div className="sidebar-logo">
             <div className="sidebar-logo-icon" style={{ background: "linear-gradient(135deg,#059669,#6366f1)" }}>
               <BookOpen size={18} />
@@ -173,6 +178,9 @@ export default function TeacherPortal({
         <div className="main-panel">
           <header className="topbar">
             <div className="topbar-left">
+              <button className="mobile-menu-btn" onClick={() => setSidebarOpen(true)}>
+                <Menu size={20} />
+              </button>
               <div>
                 <div className="topbar-title">{page.title}</div>
                 <div className="topbar-subtitle">

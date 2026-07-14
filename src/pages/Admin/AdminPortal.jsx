@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import {
   LayoutDashboard, Users, GraduationCap, Laptop,
   DollarSign, BarChart3, Settings, LifeBuoy,
-  LogOut, Bell, Search, ChevronRight, TrendingUp, BookOpen
+  LogOut, Bell, Search, ChevronRight, TrendingUp, BookOpen, Menu
 } from "lucide-react";
 
 import OverviewTab  from "./OverviewTab.jsx";
@@ -45,6 +45,7 @@ export default function AdminPortal({
   const [activeTab, setActiveTab]     = useState("overview");
   const [supportOpen, setSupportOpen] = useState(false);
   const [searchOpen, setSearchOpen]   = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
   const page = PAGE_TITLES[activeTab] || PAGE_TITLES.overview;
@@ -78,10 +79,14 @@ export default function AdminPortal({
         role="admin"
       />
 
+      {sidebarOpen && (
+        <div className="mobile-overlay active" onClick={() => setSidebarOpen(false)}></div>
+      )}
+
       <div className="portal-layout animate-fade-in">
 
         {/* ═══ SIDEBAR ═══ */}
-        <aside className="sidebar">
+        <aside className={`sidebar ${sidebarOpen ? 'mobile-open' : ''}`}>
           {/* Logo */}
           <div className="sidebar-logo">
             <div className="sidebar-logo-icon">
@@ -176,6 +181,9 @@ export default function AdminPortal({
           {/* Top Bar */}
           <header className="topbar">
             <div className="topbar-left">
+              <button className="mobile-menu-btn" onClick={() => setSidebarOpen(true)}>
+                <Menu size={20} />
+              </button>
               <div>
                 <div className="topbar-title">{page.title}</div>
                 <div className="topbar-subtitle">{page.subtitle}</div>
